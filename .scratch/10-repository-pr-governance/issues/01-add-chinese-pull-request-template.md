@@ -5,7 +5,13 @@
 
 **Blocked by:** None — can start immediately
 
+**Type:** task
+
 **Status:** claimed
+
+**Requirement:** REQ-001
+
+**Acceptance Criteria:** AC-001、AC-002、AC-003、AC-004
 
 - [x] `.github/pull_request_template.md` 存在且可由 GitHub 自動套用。
 - [x] 模板使用中文並涵蓋 Spec 定義的所有必要段落。

@@ -2,9 +2,9 @@
 
 Parent Spec: [Repository Pull Request Governance Spec](spec.md)
 
-| Ticket                                                                              | Status  | Blocked by | Requirement／AC |
-| ----------------------------------------------------------------------------------- | ------- | ---------- | --------------- |
-| [01 — 建立中文版 Pull Request 模板](issues/01-add-chinese-pull-request-template.md) | claimed | —          | REQ-001         |
+| Ticket                                                                              | Status  | Blocked by | Requirement／AC         |
+| ----------------------------------------------------------------------------------- | ------- | ---------- | ----------------------- |
+| [01 — 建立中文版 Pull Request 模板](issues/01-add-chinese-pull-request-template.md) | claimed | —          | REQ-001／AC-001～AC-004 |
 
 ## Frontier
 

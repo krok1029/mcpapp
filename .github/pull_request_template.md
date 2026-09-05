@@ -55,7 +55,7 @@
 - [ ] Diff 僅包含本 Ticket 核准範圍
 - [ ] 沒有提交 secret、credential、runtime data 或未處置的 Out-of-band Change
 - [ ] Acceptance Criteria 均有可檢查結果
-- [ ] Test、Typecheck、Lint、Format 與 Build 已實際通過
+- [ ] 適用的 Test、Typecheck、Lint、Format 與 Build 已實際通過；不適用項目已有說明與核准
 - [ ] Standards 與 Spec review 沒有未處置的阻擋 Finding
 - [ ] Commit 與 PR 發布範圍已取得專案擁有者核准
 - [ ] GitHub Actions 通過，或已有可追溯的不適用核准
