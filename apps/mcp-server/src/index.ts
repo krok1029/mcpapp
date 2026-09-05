@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { createServer, type Server as HttpServer } from 'node:http';
+import { isIPv4 } from 'node:net';
 
 import { runtimeStatusSchema, type RuntimeStatus } from '@mcpapp/contracts';
 import {
@@ -17,6 +18,10 @@ const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 3100;
 const MCP_PATH = '/mcp';
 const CLIENT_TIMEOUT_MS = 1_000;
+
+function isLoopbackAddress(host: string): boolean {
+  return host === '::1' || (isIPv4(host) && host.startsWith('127.'));
+}
 
 export interface McpAppServerOptions {
   host?: string;
@@ -98,6 +103,10 @@ export async function startMcpAppServer(
 ): Promise<McpAppServer> {
   const host = options.host ?? DEFAULT_HOST;
   const port = options.port ?? DEFAULT_PORT;
+  if (!isLoopbackAddress(host)) {
+    throw new Error('McpApp Server must bind to a loopback address');
+  }
+
   const version = await packageVersion();
   const handler = createMcpHandler(() => createRuntimeServer(version));
   const handleMcpRequest = toNodeHandler(handler);
@@ -131,7 +140,8 @@ export async function startMcpAppServer(
     throw new Error('McpApp Server did not bind a TCP address');
   }
 
-  const url = new URL(`http://${host}:${address.port}${MCP_PATH}`);
+  const urlHost = host === '::1' ? `[${host}]` : host;
+  const url = new URL(`http://${urlHost}:${address.port}${MCP_PATH}`);
   let closed = false;
 
   return {

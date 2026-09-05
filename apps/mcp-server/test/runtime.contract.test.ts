@@ -33,4 +33,10 @@ describe('McpApp Server Streamable HTTP contract', () => {
       reason: expect.stringContaining('McpApp Server is unavailable'),
     });
   });
+
+  it('rejects a non-loopback bind address', async () => {
+    await expect(
+      startMcpAppServer({ host: '0.0.0.0', port: 0 }),
+    ).rejects.toThrow('must bind to a loopback address');
+  });
 });
