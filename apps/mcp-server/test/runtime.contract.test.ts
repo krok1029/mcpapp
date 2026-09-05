@@ -39,4 +39,10 @@ describe('McpApp Server Streamable HTTP contract', () => {
       startMcpAppServer({ host: '0.0.0.0', port: 0 }),
     ).rejects.toThrow('must bind to a loopback address');
   });
+
+  it('rejects a loopback address unsupported by the request guards', async () => {
+    await expect(
+      startMcpAppServer({ host: '127.0.0.2', port: 0 }),
+    ).rejects.toThrow('must bind to 127.0.0.1 or ::1');
+  });
 });

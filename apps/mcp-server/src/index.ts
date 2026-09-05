@@ -20,7 +20,7 @@ const MCP_PATH = '/mcp';
 const CLIENT_TIMEOUT_MS = 1_000;
 
 function isLoopbackAddress(host: string): boolean {
-  return host === '::1' || (isIPv4(host) && host.startsWith('127.'));
+  return host === '127.0.0.1' || host === '::1';
 }
 
 export interface McpAppServerOptions {
@@ -104,6 +104,9 @@ export async function startMcpAppServer(
   const host = options.host ?? DEFAULT_HOST;
   const port = options.port ?? DEFAULT_PORT;
   if (!isLoopbackAddress(host)) {
+    if (isIPv4(host) && host.startsWith('127.')) {
+      throw new Error('McpApp Server must bind to 127.0.0.1 or ::1');
+    }
     throw new Error('McpApp Server must bind to a loopback address');
   }
 

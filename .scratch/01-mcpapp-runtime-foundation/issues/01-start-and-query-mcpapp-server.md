@@ -31,7 +31,14 @@ test/development-command.test.ts` 通過 1 個 test file、2 個 tests，涵蓋�
   非 loopback bind 測試因 Server 實際綁定 `0.0.0.0` 而失敗。
 - Review fix Green：同一測試內容雜湊下，`yarn vitest --root apps/mcp-server
 run test/runtime.contract.test.ts` 通過 1 個 test file、2 個 tests。
-- Final：`yarn test` 通過 6 個 test files、8 個 tests；`yarn typecheck`、
+- Request guard fix Red：`apps/mcp-server/test/runtime.contract.test.ts` SHA-256
+  `c775b5894d207df2fa6131055f0f09b0c4df54449cde159bbf2522013becb294`；
+  `127.0.0.2` 未被應用程式邊界拒絕，測試收到作業系統的
+  `EADDRNOTAVAIL` 而非預期的明確拒絕原因。
+- Request guard fix Green：同一測試內容雜湊下，`yarn vitest --root
+apps/mcp-server run test/runtime.contract.test.ts` 通過 1 個 test file、3 個
+  tests。
+- Final：`yarn test` 通過 6 個 test files、9 個 tests；`yarn typecheck`、
   `yarn lint`、`yarn format:check`、`yarn build` 與 `git diff --check` 全部通過。
 
 ## Review Findings
@@ -40,3 +47,6 @@ run test/runtime.contract.test.ts` 通過 1 個 test file、2 個 tests。
   驗證與公開邊界 contract test；專案擁有者已核准追加 Commit。
 - Standards P2：Lifecycle tests 缺少 Red Evidence。無法事後補造；專案擁有者已依
   ADR-0034 明確接受此 evidence risk。
+- 第二輪 Spec P2：Server 接受 request guards 不支援的 `127/8` 位址。已將允許範圍
+  收斂為 `127.0.0.1` 與 `::1`，並加入 contract test；專案擁有者已核准追加
+  Commit。
