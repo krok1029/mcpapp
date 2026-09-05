@@ -4,7 +4,7 @@ Parent Spec: [01 — Runtime Foundation Spec](spec.md)
 
 | Ticket                                                                                              | Status          | Blocked by | Requirement／AC            |
 | --------------------------------------------------------------------------------------------------- | --------------- | ---------- | -------------------------- |
-| [01 — 啟動並查詢 McpApp Server](issues/01-start-and-query-mcpapp-server.md)                         | ready-for-agent | —          | Runtime entrypoint         |
+| [01 — 啟動並查詢 McpApp Server](issues/01-start-and-query-mcpapp-server.md)                         | claimed         | —          | Runtime entrypoint         |
 | [02 — 建立並持久保存受管專案草稿](issues/02-create-and-persist-managed-project.md)                  | ready-for-agent | 01         | REQ-001 foundation         |
 | [03 — 為受管專案建立 Open Work Session](issues/03-begin-open-work-session.md)                       | ready-for-agent | 02         | AC-001 create              |
 | [04 — 跨 HTTP 重連與本機 Host 恢復 Work Session](issues/04-resume-work-session-across-clients.md)   | ready-for-agent | 03         | AC-001 resume、AC-002      |

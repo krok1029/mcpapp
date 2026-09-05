@@ -463,9 +463,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@mcpapp/contracts@workspace:packages/contracts":
+"@mcpapp/contracts@workspace:*, @mcpapp/contracts@workspace:packages/contracts":
   version: 0.0.0-use.local
   resolution: "@mcpapp/contracts@workspace:packages/contracts"
+  dependencies:
+    zod: "npm:4.5.4"
   languageName: unknown
   linkType: soft
 
@@ -473,9 +475,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@mcpapp/server@workspace:apps/mcp-server"
   dependencies:
+    "@mcpapp/contracts": "workspace:*"
     "@modelcontextprotocol/client": "npm:2.0.0"
     "@modelcontextprotocol/node": "npm:2.0.0"
     "@modelcontextprotocol/server": "npm:2.0.0"
+    "@types/node": "npm:24"
     hono: "npm:4.11.4"
     zod: "npm:4.5.4"
   languageName: unknown
