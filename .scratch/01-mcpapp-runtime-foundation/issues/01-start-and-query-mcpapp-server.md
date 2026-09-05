@@ -38,6 +38,12 @@ run test/runtime.contract.test.ts` 通過 1 個 test file、2 個 tests。
 - Request guard fix Green：同一測試內容雜湊下，`yarn vitest --root
 apps/mcp-server run test/runtime.contract.test.ts` 通過 1 個 test file、3 個
   tests。
+- CI dependency fix Red：commit `14d5602` 的全新快照執行 `yarn typecheck`，
+  `@mcpapp/server` 因找不到尚未 build 的 `@mcpapp/contracts` 宣告而回傳
+  `TS2307` 與 exit code 2。
+- CI dependency fix Green：全新快照套用 `turbo.json` 修正後執行
+  `yarn typecheck`；Turbo 先完成 `@mcpapp/contracts:build`，再通過所有 4 個
+  tasks，無 cache 命中。
 - Final：`yarn test` 通過 6 個 test files、9 個 tests；`yarn typecheck`、
   `yarn lint`、`yarn format:check`、`yarn build` 與 `git diff --check` 全部通過。
 
