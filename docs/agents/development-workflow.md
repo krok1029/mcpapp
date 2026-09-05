@@ -49,6 +49,7 @@ Host Agent 若具備這些 skills，Resume Context 或受管 Repository 的 Agen
 - 不先批次寫完所有測試，也不在 Green 階段加入推測性抽象。
 - Mock 只放在外部系統、時間、隨機性或必要的檔案系統等 system boundaries；優先使用真實 public interface。
 - 文件、設定、純樣式或探索工作仍需 Verification Evidence，但不為形式強迫建立沒有失敗意義的測試。
+- 為了可讀性，每個非測試 code 檔案不得超過 600 個實體行，空白行與註解也計入。超過上限代表該模組過於複雜，必須依單一職責與明確介面拆分，不得用忽略設定繞過。測試檔包含 `test/`、`tests/`、`__tests__/`、`e2e/` 目錄下的 code 檔，以及檔名含 `.test.` 或 `.spec.` 的 code 檔；`yarn lint` 會自動執行此限制。
 - 實作期間定期執行相關單檔測試與 typecheck，結束時執行完整測試、lint、typecheck 與 build。
 
 ## 5. Commit 與 code-review
