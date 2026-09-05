@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "perf": "warn",
+    "suspicious": "error"
+  },
+  "ignorePatterns": [
+    ".data/**",
+    ".turbo/**",
+    ".yarn/**",
+    "coverage/**",
+    "**/dist/**",
+    "node_modules/**",
+    "playwright-report/**",
+    "test-results/**"
+  ],
+  "plugins": ["jsx-a11y", "react", "react-perf", "typescript", "vitest"],
+  "rules": {
+    "react/react-in-jsx-scope": "off"
+  }
+}

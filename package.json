@@ -1,0 +1,38 @@
+{
+  "name": "mcpapp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A human-governed control system for verifiable AI-native software delivery.",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --filter=@mcpapp/server",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint --deny-warnings .",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "test:e2e": "turbo run test:e2e",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "@vitest/coverage-v8": "5",
+    "oxfmt": "0.66.0",
+    "oxlint": "1.81.0",
+    "tsx": "4.23.13",
+    "turbo": "2.10.12",
+    "typescript": "^5",
+    "vite": "8",
+    "vitest": "5"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "packageManager": "yarn@4.18.0"
+}

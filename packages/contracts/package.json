@@ -1,0 +1,20 @@
+{
+  "name": "@mcpapp/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Host-neutral schemas and transport DTOs for McpApp.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.check.json"
+  }
+}
