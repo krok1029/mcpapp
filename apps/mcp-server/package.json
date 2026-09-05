@@ -13,18 +13,20 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "dev": "node ../../scripts/dev-not-implemented.mjs",
+    "dev": "tsx src/main.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.check.json"
   },
   "dependencies": {
+    "@mcpapp/contracts": "workspace:*",
+    "@modelcontextprotocol/client": "2.0.0",
     "@modelcontextprotocol/node": "2.0.0",
     "@modelcontextprotocol/server": "2.0.0",
     "hono": "4.11.4",
     "zod": "4.5.4"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "2.0.0"
+    "@types/node": "24"
   }
 }

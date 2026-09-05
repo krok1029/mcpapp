@@ -27,7 +27,10 @@ corepack yarn build
 corepack yarn test:e2e
 ```
 
-`yarn dev` intentionally reports that the Server is unavailable until Runtime Foundation Ticket 01 implements the public Streamable HTTP entrypoint.
+`yarn dev` starts the foreground McpApp Server on
+`http://127.0.0.1:3100/mcp`. MCP clients can initialize over Streamable HTTP
+and call the read-only `runtime_status` tool for the Server readiness and
+version. Stop the Server with `Ctrl-C`.
 
 ## License
 
