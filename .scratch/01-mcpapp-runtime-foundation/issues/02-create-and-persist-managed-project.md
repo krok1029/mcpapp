@@ -56,3 +56,6 @@
   `yarn test` 全部通過，其中 Server 為 4 個 test files、10 個 tests；
   `yarn lint`、`yarn typecheck`、`yarn format:check`、`yarn build` 與
   `git diff --check` 全部通過。
+- Standards re-review P2：直接修改既有 Spec 未建立 successor Spec Version 與
+  Impact Analysis。已保存不可變 v001／v002 snapshots、將 `spec.md` 改為穩定入口，
+  並記錄 Ticket 02、03、06 與相關 tests 的影響及處置。
