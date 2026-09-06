@@ -6,3 +6,16 @@ export const runtimeStatusSchema = z.object({
 });
 
 export type RuntimeStatus = z.infer<typeof runtimeStatusSchema>;
+
+export const managedProjectSummarySchema = z.object({
+  project_id: z.uuid(),
+  status: z.literal('draft'),
+});
+
+export type ManagedProjectSummary = z.infer<typeof managedProjectSummarySchema>;
+
+export const managedProjectNotFoundSchema = z.object({
+  code: z.literal('PROJECT_NOT_FOUND'),
+  message: z.literal('Managed Project not found'),
+  project_id: z.uuid(),
+});
