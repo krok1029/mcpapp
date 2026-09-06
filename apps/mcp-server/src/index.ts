@@ -8,9 +8,11 @@ import {
   managedProjectNotFoundSchema,
   managedProjectSummarySchema,
   runtimeStatusSchema,
+  workSessionSummarySchema,
   type ManagedProjectId,
   type ManagedProjectSummary,
   type RuntimeStatus,
+  type WorkSessionSummary,
 } from '@mcpapp/contracts';
 import {
   Client,
@@ -24,10 +26,7 @@ import {
 import { createMcpHandler, McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
-import {
-  openManagedProjectStore,
-  type ManagedProjectStore,
-} from './managed-project-store.js';
+import { openRuntimeStore, type RuntimeStore } from './runtime-store.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 3100;
@@ -55,7 +54,7 @@ export type RuntimeStatusQuery =
 
 function createRuntimeServer(
   version: string,
-  projects: ManagedProjectStore,
+  runtimeStore: RuntimeStore,
 ): McpServer {
   const server = new McpServer({ name: 'mcpapp', version });
   const status: RuntimeStatus = { readiness: 'ready', version };
@@ -82,7 +81,7 @@ function createRuntimeServer(
       outputSchema: managedProjectSummarySchema,
     },
     () => {
-      const project = projects.create();
+      const project = runtimeStore.createManagedProject();
       return {
         content: [{ type: 'text', text: JSON.stringify(project) }],
         structuredContent: project,
@@ -100,7 +99,7 @@ function createRuntimeServer(
       annotations: { readOnlyHint: true },
     },
     ({ project_id }) => {
-      const project = projects.get(project_id);
+      const project = runtimeStore.getManagedProject(project_id);
       if (!project) {
         const error = {
           code: 'PROJECT_NOT_FOUND' as const,
@@ -115,6 +114,35 @@ function createRuntimeServer(
       return {
         content: [{ type: 'text', text: JSON.stringify(project) }],
         structuredContent: project,
+      };
+    },
+  );
+
+  server.registerTool(
+    'begin_or_resume_work',
+    {
+      title: 'Begin or resume work',
+      description:
+        'Create an Open Work Session for an existing Managed Project. The handle associates state and is not an authorization credential.',
+      inputSchema: z.object({ project_id: managedProjectIdSchema }),
+      outputSchema: workSessionSummarySchema,
+    },
+    ({ project_id }) => {
+      const workSession = runtimeStore.beginOrResumeWork(project_id);
+      if (!workSession) {
+        const error = {
+          code: 'PROJECT_NOT_FOUND' as const,
+          message: 'Managed Project not found' as const,
+          project_id,
+        };
+        return {
+          isError: true,
+          content: [{ type: 'text', text: JSON.stringify(error) }],
+        };
+      }
+      return {
+        content: [{ type: 'text', text: JSON.stringify(workSession) }],
+        structuredContent: workSession,
       };
     },
   );
@@ -177,9 +205,9 @@ export async function startMcpAppServer(
   }
 
   const version = await packageVersion();
-  const projects = await openManagedProjectStore(databasePath);
+  const runtimeStore = await openRuntimeStore(databasePath);
   const handler = createMcpHandler(() =>
-    createRuntimeServer(version, projects),
+    createRuntimeServer(version, runtimeStore),
   );
   const handleMcpRequest = toNodeHandler(handler);
   const validateHost = localhostHostValidation();
@@ -223,18 +251,22 @@ export async function startMcpAppServer(
       closed = true;
       await handler.close();
       await closeHttpServer(httpServer);
-      projects.close();
+      runtimeStore.close();
     },
   };
 }
 
-async function callManagedProjectTool(
+async function callProjectTool<Result>(
   url: URL,
-  name: 'create_managed_project' | 'get_managed_project',
+  name:
+    | 'create_managed_project'
+    | 'get_managed_project'
+    | 'begin_or_resume_work',
   arguments_: Record<string, unknown>,
-): Promise<ManagedProjectSummary> {
+  outputSchema: z.ZodType<Result>,
+): Promise<Result> {
   const client = new Client({
-    name: 'mcpapp-managed-project-client',
+    name: 'mcpapp-client',
     version: '0.0.0',
   });
   const transport = new StreamableHTTPClientTransport(url);
@@ -252,23 +284,43 @@ async function callManagedProjectTool(
       );
       throw new Error(`${error.code}: ${error.message}`);
     }
-    return managedProjectSummarySchema.parse(result.structuredContent);
+    return outputSchema.parse(result.structuredContent);
   } finally {
     await client.close();
   }
 }
 
 export function createManagedProject(url: URL): Promise<ManagedProjectSummary> {
-  return callManagedProjectTool(url, 'create_managed_project', {});
+  return callProjectTool(
+    url,
+    'create_managed_project',
+    {},
+    managedProjectSummarySchema,
+  );
 }
 
 export function getManagedProject(
   url: URL,
   projectId: ManagedProjectId,
 ): Promise<ManagedProjectSummary> {
-  return callManagedProjectTool(url, 'get_managed_project', {
-    project_id: projectId,
-  });
+  return callProjectTool(
+    url,
+    'get_managed_project',
+    { project_id: projectId },
+    managedProjectSummarySchema,
+  );
+}
+
+export function beginOrResumeWork(
+  url: URL,
+  projectId: ManagedProjectId,
+): Promise<WorkSessionSummary> {
+  return callProjectTool(
+    url,
+    'begin_or_resume_work',
+    { project_id: projectId },
+    workSessionSummarySchema,
+  );
 }
 
 export async function queryRuntimeStatus(
