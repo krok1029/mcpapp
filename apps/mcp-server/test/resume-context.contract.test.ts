@@ -380,4 +380,56 @@ describe('Resume Context across Server process restarts', () => {
       },
     ]);
   });
+
+  it('preserves invalid saved progress until repaired before beginning the first Work Session', async () => {
+    // GIVEN: A persisted draft has invalid progress and has never begun a Work Session.
+    const first = await startServer();
+    const project = await createManagedProject(first.url);
+    await stopServer(first.child);
+    preparePersistedState((database) => {
+      database
+        .prepare(
+          'UPDATE project_workflow_state SET last_successful_step = ? WHERE project_id = ?',
+        )
+        .run('', project.project_id);
+    });
+    const restarted = await startServer();
+
+    // WHEN: A Client begins work for the first time.
+    const result = await resume(restarted.url, project.project_id);
+
+    // THEN: Beginning work rejects the invalid progress without erasing the problem.
+    expect(result.isError).toBe(true);
+    expect(result.content).toEqual([
+      {
+        type: 'text',
+        text: expect.stringContaining('"code":"PERSISTED_STATE_INVALID"'),
+      },
+    ]);
+    await stopServer(restarted.child);
+    const retried = await startServer();
+    const stillInvalid = await resume(retried.url, project.project_id);
+    expect(stillInvalid.isError).toBe(true);
+    expect(stillInvalid.content).toEqual(result.content);
+    await stopServer(retried.child);
+
+    preparePersistedState((database) => {
+      database
+        .prepare(
+          'UPDATE project_workflow_state SET last_successful_step = ? WHERE project_id = ?',
+        )
+        .run('create_managed_project', project.project_id);
+    });
+    const repaired = await startServer();
+    const begun = await resume(repaired.url, project.project_id);
+    expect(begun.isError).not.toBe(true);
+    expect(begun.structuredContent).toMatchObject({
+      project_id: project.project_id,
+      status: 'open',
+      resume_context: {
+        project_id: project.project_id,
+        last_successful_step: 'begin_or_resume_work',
+      },
+    });
+  });
 });

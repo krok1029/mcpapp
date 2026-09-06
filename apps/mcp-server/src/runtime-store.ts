@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import {
   managedProjectSummarySchema,
   workSessionSummarySchema,
-  workSessionResumeSchema,
+  resumeContextSchema,
   type ManagedProjectId,
   type ManagedProjectSummary,
   type WorkSessionResume,
@@ -201,6 +201,14 @@ export async function openRuntimeStore(
                 project_id: projectId,
                 status: 'open',
               });
+          const resumeContext = resumeContextSchema.parse({
+            project_id: projectId,
+            work_session_id: workSession.work_session_id,
+            workflow_state: project.status,
+            last_successful_step: state.lastSuccessfulStep,
+            pending_approval_gates: JSON.parse(state.pendingApprovalGates),
+            evidence_metadata: JSON.parse(state.evidenceMetadata),
+          });
           if (!openWorkSession) {
             transaction
               .insert(workSessions)
@@ -219,19 +227,15 @@ export async function openRuntimeStore(
               .where(eq(projectWorkflowState.projectId, projectId))
               .run();
           }
-          return workSessionResumeSchema.parse({
+          return {
             ...workSession,
             resume_context: {
-              project_id: projectId,
-              work_session_id: workSession.work_session_id,
-              workflow_state: project.status,
+              ...resumeContext,
               last_successful_step: openWorkSession
-                ? state.lastSuccessfulStep
+                ? resumeContext.last_successful_step
                 : 'begin_or_resume_work',
-              pending_approval_gates: JSON.parse(state.pendingApprovalGates),
-              evidence_metadata: JSON.parse(state.evidenceMetadata),
             },
-          });
+          };
         });
       } catch (error) {
         if (error instanceof SyntaxError || error instanceof ZodError) {
