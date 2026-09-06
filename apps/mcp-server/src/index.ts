@@ -8,9 +8,11 @@ import {
   managedProjectNotFoundSchema,
   managedProjectSummarySchema,
   runtimeStatusSchema,
+  workSessionSummarySchema,
   type ManagedProjectId,
   type ManagedProjectSummary,
   type RuntimeStatus,
+  type WorkSessionSummary,
 } from '@mcpapp/contracts';
 import {
   Client,
@@ -115,6 +117,35 @@ function createRuntimeServer(
       return {
         content: [{ type: 'text', text: JSON.stringify(project) }],
         structuredContent: project,
+      };
+    },
+  );
+
+  server.registerTool(
+    'begin_or_resume_work',
+    {
+      title: 'Begin or resume work',
+      description:
+        'Create an Open Work Session for an existing Managed Project. The handle associates state and is not an authorization credential.',
+      inputSchema: z.object({ project_id: managedProjectIdSchema }),
+      outputSchema: workSessionSummarySchema,
+    },
+    ({ project_id }) => {
+      const workSession = projects.createWorkSession(project_id);
+      if (!workSession) {
+        const error = {
+          code: 'PROJECT_NOT_FOUND' as const,
+          message: 'Managed Project not found' as const,
+          project_id,
+        };
+        return {
+          isError: true,
+          content: [{ type: 'text', text: JSON.stringify(error) }],
+        };
+      }
+      return {
+        content: [{ type: 'text', text: JSON.stringify(workSession) }],
+        structuredContent: workSession,
       };
     },
   );
@@ -269,6 +300,38 @@ export function getManagedProject(
   return callManagedProjectTool(url, 'get_managed_project', {
     project_id: projectId,
   });
+}
+
+export async function beginOrResumeWork(
+  url: URL,
+  projectId: ManagedProjectId,
+): Promise<WorkSessionSummary> {
+  const client = new Client({
+    name: 'mcpapp-work-session-client',
+    version: '0.0.0',
+  });
+  const transport = new StreamableHTTPClientTransport(url);
+
+  try {
+    await client.connect(transport, { timeout: CLIENT_TIMEOUT_MS });
+    const result = await client.callTool(
+      {
+        name: 'begin_or_resume_work',
+        arguments: { project_id: projectId },
+      },
+      { timeout: CLIENT_TIMEOUT_MS },
+    );
+    if (result.isError) {
+      const content = result.content.find((item) => item.type === 'text');
+      const error = managedProjectNotFoundSchema.parse(
+        content?.type === 'text' ? JSON.parse(content.text) : undefined,
+      );
+      throw new Error(`${error.code}: ${error.message}`);
+    }
+    return workSessionSummarySchema.parse(result.structuredContent);
+  } finally {
+    await client.close();
+  }
 }
 
 export async function queryRuntimeStatus(

@@ -23,3 +23,15 @@ export const managedProjectNotFoundSchema = z.object({
   message: z.literal('Managed Project not found'),
   project_id: managedProjectIdSchema,
 });
+
+export const workSessionIdSchema = z.uuid().brand<'WorkSessionId'>();
+
+export type WorkSessionId = z.infer<typeof workSessionIdSchema>;
+
+export const workSessionSummarySchema = z.object({
+  work_session_id: workSessionIdSchema,
+  project_id: managedProjectIdSchema,
+  status: z.literal('open'),
+});
+
+export type WorkSessionSummary = z.infer<typeof workSessionSummarySchema>;
