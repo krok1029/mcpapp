@@ -29,6 +29,8 @@ Ticket 02，因此尚未被認領的 frontier 是 Ticket 07。McpApp Repository 
   commit 為 `01ce44b7e599fff0c695b22bf0a486cf7f17b484`；合併前 CI 與安全檢查均通過。
 - Ticket 02 依 MVP 交付順序先於同時解除阻擋的 Ticket 07 認領；review fixed point
   為 `c5a46c7`。
+- Ticket 02 review 確認建立受管專案草稿是先於 `project_id` 與 Work Session 的
+  bootstrap 操作；AC-004 已依專案擁有者核准澄清其適用範圍。
 
 ## Dependency graph
 

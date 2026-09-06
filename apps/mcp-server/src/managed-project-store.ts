@@ -3,7 +3,11 @@ import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
-import type { ManagedProjectSummary } from '@mcpapp/contracts';
+import {
+  managedProjectSummarySchema,
+  type ManagedProjectId,
+  type ManagedProjectSummary,
+} from '@mcpapp/contracts';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-sqlite';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
@@ -15,7 +19,7 @@ const managedProjects = sqliteTable('managed_projects', {
 
 export interface ManagedProjectStore {
   create(): ManagedProjectSummary;
-  get(projectId: string): ManagedProjectSummary | undefined;
+  get(projectId: ManagedProjectId): ManagedProjectSummary | undefined;
   close(): void;
 }
 
@@ -34,10 +38,10 @@ export async function openManagedProjectStore(
 
   return {
     create() {
-      const project: ManagedProjectSummary = {
+      const project = managedProjectSummarySchema.parse({
         project_id: randomUUID(),
         status: 'draft',
-      };
+      });
       database
         .insert(managedProjects)
         .values({ projectId: project.project_id, status: project.status })
@@ -51,7 +55,10 @@ export async function openManagedProjectStore(
         .where(eq(managedProjects.projectId, projectId))
         .get();
       if (!row) return undefined;
-      return { project_id: row.projectId, status: 'draft' };
+      return managedProjectSummarySchema.parse({
+        project_id: row.projectId,
+        status: row.status,
+      });
     },
     close() {
       sqlite.close();

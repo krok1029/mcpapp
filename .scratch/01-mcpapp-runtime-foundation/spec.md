@@ -18,7 +18,9 @@ Host 對話、HTTP 連線與前景程序都可能中斷。如果 McpApp 把工�
 - AC-001：`begin_or_resume_work` 在沒有 Open Work Session 時建立新的不透明 handle；已有時回傳同一 handle 與最新 Resume Context。
 - AC-002：Host 對話結束、HTTP 中斷及 Project Console 重載不會關閉 Work Session。
 - AC-003：Server 重啟後可恢復受管專案、目前狀態、最後成功步驟、待處理閘門與 Evidence metadata。
-- AC-004：純讀取不需要 Work Session；所有變更型工具都要求有效 handle。
+- AC-004：純讀取不需要 Work Session；建立受管專案草稿是尚無 `project_id` 可綁定
+  Work Session 的 bootstrap 操作，除此之外，所有作用於既有受管專案的變更型工具
+  都要求有效 handle。
 
 #### REQ-007 — 單一 Server 與並行保護
 

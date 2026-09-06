@@ -4,9 +4,11 @@ import { isIPv4 } from 'node:net';
 import { join } from 'node:path';
 
 import {
+  managedProjectIdSchema,
   managedProjectNotFoundSchema,
   managedProjectSummarySchema,
   runtimeStatusSchema,
+  type ManagedProjectId,
   type ManagedProjectSummary,
   type RuntimeStatus,
 } from '@mcpapp/contracts';
@@ -93,7 +95,7 @@ function createRuntimeServer(
     {
       title: 'Get Managed Project',
       description: 'Read a persisted Managed Project summary.',
-      inputSchema: z.object({ project_id: z.uuid() }),
+      inputSchema: z.object({ project_id: managedProjectIdSchema }),
       outputSchema: managedProjectSummarySchema,
       annotations: { readOnlyHint: true },
     },
@@ -262,7 +264,7 @@ export function createManagedProject(url: URL): Promise<ManagedProjectSummary> {
 
 export function getManagedProject(
   url: URL,
-  projectId: string,
+  projectId: ManagedProjectId,
 ): Promise<ManagedProjectSummary> {
   return callManagedProjectTool(url, 'get_managed_project', {
     project_id: projectId,

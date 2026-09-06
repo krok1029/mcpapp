@@ -38,3 +38,21 @@
 - Final：`yarn test` 全部通過，其中 Server 為 4 個 test files、10 個 tests；
   `yarn lint`、`yarn typecheck`、`yarn format:check`、`yarn build` 與
   `git diff --check` 全部通過。
+
+## Review Findings
+
+- Spec P1：`create_managed_project` 無 handle，與原 AC-004 的「所有變更型工具」
+  文字衝突。專案擁有者已核准將 AC-004 澄清為：建立受管專案草稿是尚無
+  `project_id` 可綁定 Work Session 的 bootstrap 操作；其餘作用於既有受管專案的
+  變更型工具仍要求有效 handle。
+- Standards P2：重啟持久化與不重用 ID tests 缺少同內容 Red Evidence。無法事後
+  補造；專案擁有者已明確接受此 evidence risk。
+- Standards P3：contract tests 重複建立暫存 SQLite／Server fixture。已抽出共用
+  fixture helper。
+- Standards P3：`project_id` 在內部 Storage 與 Client 邊界使用一般 `string`。
+  已改用由 Zod schema 推導的 branded `ManagedProjectId`。
+- Review fix verification：重構後 contract test SHA-256
+  `945c403ecaede480a210ba40fe7db97c9cb60cdd5b3cc58299b6f9e9da8d02cd`；
+  `yarn test` 全部通過，其中 Server 為 4 個 test files、10 個 tests；
+  `yarn lint`、`yarn typecheck`、`yarn format:check`、`yarn build` 與
+  `git diff --check` 全部通過。
