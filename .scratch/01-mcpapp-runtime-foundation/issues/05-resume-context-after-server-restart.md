@@ -4,11 +4,197 @@
 
 **Blocked by:** 04 — 跨 HTTP 重連與本機 Host 恢復 Work Session
 
-**Status:** ready-for-agent
+**Status:** claimed
 
-- [ ] 關閉並重啟 Server 後，`begin_or_resume_work` 回傳重啟前的 `work_session_id`。
-- [ ] Resume Context 包含受管專案與 Work Session 身分、目前工作流狀態、最後成功步驟及待處理 Approval Gate。
-- [ ] Resume Context 包含目前已存在的 Evidence metadata 摘要；沒有 Evidence 時回傳明確空集合。
-- [ ] Resume Context 由 SQLite 權威狀態產生，不依賴 Host 對話或記憶體快取。
-- [ ] 不完整或無法解析的持久狀態不會被默認為正常，而會回傳可處置的錯誤。
-- [ ] 以停止、重新建立 Server 程序的整合測試證明 AC-003 的正常重啟恢復行為。
+**Review fixed point:** `d4ee4b6c4cedae98187c651238ff9a55fc327ed3`
+
+- [x] 關閉並重啟 Server 後，`begin_or_resume_work` 回傳重啟前的 `work_session_id`。
+- [x] Resume Context 包含受管專案與 Work Session 身分、目前工作流狀態、最後成功步驟及待處理 Approval Gate。
+- [x] Resume Context 包含目前已存在的 Evidence metadata 摘要；沒有 Evidence 時回傳明確空集合。
+- [x] Resume Context 由 SQLite 權威狀態產生，不依賴 Host 對話或記憶體快取。
+- [x] 不完整或無法解析的持久狀態不會被默認為正常，而會回傳可處置的錯誤。
+- [x] 以停止、重新建立 Server 程序的整合測試證明 AC-003 的正常重啟恢復行為。
+
+## Implementation
+
+- Active Spec：`spec-versions/v003.md`，REQ-001／AC-003 的正常重啟部分，並維持
+  AC-001 的同一 handle 與最新 Resume Context 行為。
+- `begin_or_resume_work` 保留既有三個頂層欄位，新增 `resume_context`；其中包含
+  `project_id`、`work_session_id`、`workflow_state`、`last_successful_step`、
+  `pending_approval_gates` 與 `evidence_metadata`。目前已實作的工作流狀態是 `draft`。
+- 建立專案及首次開始工作時，以 SQLite transaction 一併保存 workflow metadata；
+  恢復既有 Session 時讀取最新持久狀態，不覆寫最後成功步驟。沒有待處理閘門或
+  Evidence 時回傳 `[]`。Evidence 摘要包含穩定 UUID 與摘要文字。
+- `user_version = 0` 的既有資料庫會交易式升級為版本 1，保留專案與 Open Work
+  Session 身分。既有版本沒有保存歷史步驟，因此升級時使用 `null`；既有版本尚無
+  Approval／Evidence 產生流程，對應集合為 `[]`。已升級資料缺少 workflow row 時
+  不會再次補成預設值。
+- 缺少 workflow row、JSON 損壞、Evidence 結構不完整或 Session 關聯不一致時，
+  回傳 `PERSISTED_STATE_INVALID` 及停止工作、檢查或從可信備份還原的處置指引。
+  交易內驗證失敗會 rollback，避免留下部分狀態。
+- 使用既有 CONTEXT／ADR 的 Resume Context、Approval Gate 與 Evidence 定義。
+  本 Ticket 不新增工作流轉移工具或 metadata 寫入工具；異常終止與部分結果恢復仍屬
+  Ticket 12。
+
+## Verification Evidence
+
+- Public seam：真實 Streamable HTTP Client → 獨立 Node Server 子程序 → 真實暫存
+  SQLite。透過 SIGTERM 等待原程序退出，再 fork 新程序並重新連線；不以同一程序
+  內重新建立 Server 物件代替程序重啟。
+- 新增 `apps/mcp-server/test/resume-context.contract.test.ts` 共 9 cases：正常重啟、
+  已存在的 metadata、舊格式升級後再次重啟、缺少 workflow row、JSON 損壞後修復、
+  Session 關聯不一致、同一程序內取得最新 metadata、缺少 Evidence identity，以及
+  首次開始工作前保留損壞進度並在資料修復後恢復。
+- SQLite fixture 只用於安排舊版本、損壞資料及已保存 metadata；所有 assertions
+  只觀察 MCP 回應。最新 metadata case 在 Server 閒置時更新 fixture，再經新 Client
+  呼叫同一 Server，證明先前回傳的 Resume Context 不會成為記憶體權威快取。
+  Fixture Evidence 只代表待讀取的測試資料，不宣稱已執行真實驗證工作流。
+
+### TDD slices — 首輪實作
+
+每個切片先執行單一新增 case，再完成對應最小實作。以下 snapshot、完整 log 與
+指令紀錄位於 `/tmp/mcpapp-ticket05-4FlcNB/`。Red／Green 配對使用相同測試內容；
+沒有建立 Red Commit。
+
+| 切片                   | 測試內容 SHA-256                                                   | Red → Green 證據                                                                        |
+| ---------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| 重啟與 Resume Context  | `f4bbcaabff375333a129db4f1675a918c650565cd27233c74bc0259699282b05` | `context-red-final.log` 缺少 `resume_context` → `context-green-final.log` 通過          |
+| 已存在的 metadata      | `96c4209030a1a3822fb06b762b066c813a156341b00b0652abc8143a7a3b2040` | 首次即 Green；`metadata-green.log`，既有 JSON 讀取已涵蓋                                |
+| 舊格式升級             | `6e3f985ada044d6672b71a951bb56ffda859651dca96e73a83c19b258545d49f` | `migration-red.log` 無法恢復舊專案 → `migration-green.log` 通過                         |
+| 缺少 workflow row      | `611c072a373711f819c7f2e9473a903e02f34cc58fd7ab9e181857a33f889496` | `missing-state-red.log` 只有一般錯誤 → `missing-state-green.log` 回傳可處置領域錯誤     |
+| JSON 損壞與修復        | `fce2a8d673cf99fbd61d6f97395bea18e45603fde415c2207f65819d4b5bbad6` | `malformed-red.log` 暴露原始解析錯誤 → `malformed-green.log` 回報領域錯誤並保留 Session |
+| Session 關聯不一致     | `ae9e8ce1e74399cafe5b0d9a0d3c2de7865cce412c117e150e9d8001bd616fee` | `identity-red-final.log` 錯誤地回傳正常結果 → `identity-green-final.log` 通過           |
+| 同一程序內最新狀態     | `e898291ddbcc094c7eed9fbe9c61a61619387c236507b3f1e3732d6eeecd5b37` | 首次即 Green；`latest-green.log`                                                        |
+| Evidence 缺少 identity | `fe946a6e2c62e7ee23c77c8e88c9779bdde9ea090d8a41090cd3f89d3852cec0` | 首次即 Green；`evidence-invalid-green.log`，既有結構驗證已涵蓋                          |
+
+- 單檔指令：`corepack yarn vitest run --root apps/mcp-server test/resume-context.contract.test.ts`。
+  單一切片以 `-t` 指定相應 case；重跑指令與 selectors 保存於 `commands.md`。
+- Session 關聯測試最初使用不存在的 UUID，遭 SQLite 外鍵在 fixture setup 拒絕；
+  `identity-red.log`／`identity-green.log` 不算 Red／Green 證據。改用可保存但不一致的
+  NULL 關聯後，重新取得上表有效 Red，再恢復檢查並取得 Green。
+- 最後將程序清理改為 `Promise.all` 以符合 lint；修改前後相同 8 個 cases 均 Green。
+  並將最終測試原樣放入 review fixed point 的暫存展開目錄，重新執行第一個 case：
+  `final-content-red.log` 仍因缺少 `resume_context` 失敗，目前實作則完整通過。
+- 首輪提交的測試檔 SHA-256：
+  `1d3e05d1d304949ea95c96bc0cfe93fc2d1b9cce3515cf64e06145d011f14d31`。
+- 子程序 fixture SHA-256：
+  `b4759a42a914382cdbb3d187441de7817d8ddf31e0a7a94b61faa7b5e8a9375e`。
+
+### Quality checks — 首輪實作，2026-09-06
+
+| 指令                         | 結果                                                   |
+| ---------------------------- | ------------------------------------------------------ |
+| `corepack yarn test`         | Node runner 6、Server 27、Contracts 1、UI 2 tests 通過 |
+| `corepack yarn lint`         | 通過，包含非測試 code 檔案 600 行限制                  |
+| `corepack yarn typecheck`    | 通過                                                   |
+| `corepack yarn build`        | 通過                                                   |
+| `corepack yarn test:e2e`     | 1 個 Chromium test 通過                                |
+| `corepack yarn format:check` | 通過                                                   |
+| `git diff --check`           | 通過                                                   |
+
+- Contracts build／test、Server tests／typecheck／build 與 Chromium test 在本 Ticket
+  均實際執行；最後重跑時部分已通過的 Contracts jobs 以及未變更的 UI jobs 使用
+  Turbo cache。完整輸出為 `full-test-final.log`、`lint-final.log`、
+  `typecheck-final.log`、`build-final.log`、`e2e-final.log` 與 `format-final.log`。
+- 開發期間的工具解析失敗、fixture setup 失敗、typecheck 與 lint 修正均未充作
+  行為 Red。首輪 lint 的程序清理警告已修正，最終檢查無警告。
+
+## Review 與修正 — 2026-09-06
+
+- 已核准並建立 Commit `1c3b73efba7faca097625bb614e24aef3e386034`，
+  `feat: restore persisted Resume Context after server restart`。
+- 兩個平行、獨立的 sub-agents 以已保存 fixed point 對此 HEAD 執行審查。完整報告
+  位於 `/tmp/mcpapp-ticket05-4FlcNB/review.md`，各軸結果保持分開：
+
+| Review axis | Findings | 結果                                                                     |
+| ----------- | -------- | ------------------------------------------------------------------------ |
+| Standards   | 0        | 未發現明確規範違反或具交付影響的 smell；核對適用 ADR 與原始測試證據      |
+| Spec        | 1，P2    | 首次開始工作前，損壞的 `last_successful_step` 會被覆寫，繞過持久狀態驗證 |
+
+- Spec Finding 違反本 Ticket「不完整或無法解析的持久狀態不會被默認為正常」要求：
+  草稿尚無 Work Session 時，保存的空字串會先被替換成 `begin_or_resume_work`，
+  然後才驗證輸出。選擇修正，不將此風險默認為已接受。
+- 追加的第 9 個 HTTP contract case 先安排尚未開始工作的草稿及空字串進度，再
+  透過新 Server 程序呼叫公開 MCP tool。修正前錯誤地成功；修正後回報
+  `PERSISTED_STATE_INVALID`，再次重啟仍保留錯誤，資料修復後才可正常開始工作。
+- `runtime-store.ts` 現在先解析並驗證完整的持久 Resume Context，再寫入新 Session
+  及最後成功步驟。恢復既有 Session 與合法的 legacy `null` 步驟行為保持通過。
+- Red／Green 使用相同測試檔，SHA-256：
+  `960edba8b2b9940512eba23e1ad6868e8469fef67d91e9d5d743b5796e494096`；
+  snapshot 保存為 `review-fix.test.ts`。
+- Red 指令：`corepack yarn vitest run --root apps/mcp-server test/resume-context.contract.test.ts -t 'preserves invalid saved progress'`。
+  `review-fix-red.log` 因預期 `isError: true` 卻收到成功結果而失敗。
+- Green 指令：`corepack yarn vitest run --root apps/mcp-server test/resume-context.contract.test.ts`。
+  `review-fix-green.log` 的 9 個 cases 全部通過；測試內容未變更。
+
+### Review 修正後 Quality checks
+
+| 指令                         | 結果／本機 log                                                                     |
+| ---------------------------- | ---------------------------------------------------------------------------------- |
+| `corepack yarn test`         | Node runner 6、Server 28、Contracts 1、UI 2 tests 通過；`review-fix-full-test.log` |
+| `corepack yarn typecheck`    | 通過；`review-fix-typecheck.log`                                                   |
+| `corepack yarn lint`         | 通過；`review-fix-lint.log`                                                        |
+| `corepack yarn build`        | 通過；`review-fix-build.log`                                                       |
+| `corepack yarn test:e2e`     | 1 個 Chromium test 通過；`review-fix-e2e.log`                                      |
+| `corepack yarn format:check` | 通過；`review-fix-format.log`                                                      |
+| `git diff --check`           | 通過                                                                               |
+
+Server tests／typecheck／build 與 Chromium test 均重新執行；未變更的 Contracts／UI
+jobs 使用既有成功的 Turbo cache。以上 log 均位於 `/tmp/mcpapp-ticket05-4FlcNB/`。
+
+## 最終複審與 PR 發布 — 2026-09-06
+
+- 專案擁有者核准追加 Commit `dc1a855d8246cbdcfd488c4f210a355d88c29fb8`：
+  `fix: validate saved progress before beginning work`。
+- 兩個新的獨立 sub-agents 針對 fixed point 至 `dc1a855` 的完整累積 Diff 重新審查：
+  Standards 為 0 Findings，Spec 為 0 未結案 Findings，原 P2 明確結案。
+  完整報告為 `/tmp/mcpapp-ticket05-4FlcNB/review-final.md`。
+- 專案擁有者核准發布方案後，已推送分支並建立
+  [Draft PR #6](https://github.com/krok1029/mcpapp/pull/6)。Remote 為
+  `origin`／`krok1029/mcpapp`，base 為 `main`，head 為
+  `codex/ticket-05-resume-context`，Labels 為 `enhancement`、`risk:medium`。
+- 遠端 PR 的 Diff 與核准 Diff 逐 byte 相同，HEAD 保持 `dc1a855`。GitGuardian
+  Security Checks 通過。
+
+## CI 逾時修正 — 2026-09-07
+
+- [CI #34043890202](https://github.com/krok1029/mcpapp/actions/runs/34043890202)
+  的 Typecheck、Lint、Format 通過；Test 階段的第 9 個 Resume Context case 在
+  5,033 ms 達到 Vitest 預設 5,000 ms 測試時限，其餘 27 個 Server tests 通過。
+  Build／Browser test 因前一步失敗而略過。原始輸出為 `ci-failed.log`。
+- 該 case 依序啟動四個真實 Server 程序，以驗證草稿、損壞狀態、重試與修復。
+  在本機暫存 preloader 對每次啟動加入 1 秒延遲後，單獨執行同一 case 可重現
+  相同的 5 秒整體逾時；只透過 CLI 放寬整體時限便通過。這是啟動成本的控制實驗，
+  不宣稱完全重現 Linux runner 的硬體或排程。
+- 修正僅為這個 case 設定 `15_000` ms 時限，並增加一行原因註解。所有行為斷言、
+  每次程序啟停的 5 秒限制及每次 MCP 操作的 1 秒限制維持原樣，產品程式碼未變更。
+- 修正後在相同較慢啟動條件下，連續 5 次全部通過，各次約 6.6 秒；完整輸出為
+  `ci-timeout-green-1.log` 至 `ci-timeout-green-5.log`。診斷紀錄為
+  `ci-timeout-diagnosis.md`，暫存延遲程式保存在 `debug/`，不納入 Repository。
+- 為確認放寬時限不會掩蓋原 P2，將最終測試原樣放入 `1c3b73e` 的暫存展開目錄。
+  `ci-timeout-guard-red.log` 仍因預期錯誤卻收到成功結果而失敗；目前實作的相同
+  測試則全部通過。最終測試 SHA-256：
+  `2d3d6118837008fd09be64f5eea2af1898d73b53494203c68de1624a63261db2`。
+
+### CI 修正後本機驗證
+
+| 指令                         | 結果／本機 log                                                           |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `corepack yarn test`         | Node runner 6、Server 28、Contracts 1、UI 2 通過；`ci-fix-full-test.log` |
+| `corepack yarn typecheck`    | 通過；`ci-fix-typecheck.log`                                             |
+| `corepack yarn lint`         | 通過；`ci-fix-lint.log`                                                  |
+| `corepack yarn build`        | 通過；`ci-fix-build.log`                                                 |
+| `corepack yarn test:e2e`     | 1 個 Chromium case 通過；`ci-fix-e2e.log`                                |
+| `corepack yarn format:check` | 通過；`ci-fix-format.log`                                                |
+| `git diff --check`           | 通過                                                                     |
+
+以上 log 位於 `/tmp/mcpapp-ticket05-4FlcNB/`。Server tests／typecheck／build 及
+Chromium case 重新執行；未變更的 Contracts／UI jobs 使用先前成功的 Turbo cache。
+
+## Delivery status
+
+- 分支：`codex/ticket-05-resume-context`。
+- `dc1a855` 的雙軸 review 已通過，PR #6 已發布並維持 Draft。
+- CI 的測試時限修正已完成本機驗證；專案擁有者已於 2026-09-07 核准追加 Commit、
+  以相同 fixed point 重跑雙軸 review，並於通過後推送到既有 PR、重跑 CI。
+- Ticket 保持 `claimed`，待專案擁有者 Merge 並記錄 Merge Commit 後才可 resolved。

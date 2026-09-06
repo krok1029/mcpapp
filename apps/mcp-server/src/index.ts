@@ -5,14 +5,14 @@ import { join } from 'node:path';
 
 import {
   managedProjectIdSchema,
-  managedProjectNotFoundSchema,
+  projectToolErrorSchema,
   managedProjectSummarySchema,
   runtimeStatusSchema,
-  workSessionSummarySchema,
+  workSessionResumeSchema,
   type ManagedProjectId,
   type ManagedProjectSummary,
   type RuntimeStatus,
-  type WorkSessionSummary,
+  type WorkSessionResume,
 } from '@mcpapp/contracts';
 import {
   Client,
@@ -26,7 +26,11 @@ import {
 import { createMcpHandler, McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
-import { openRuntimeStore, type RuntimeStore } from './runtime-store.js';
+import {
+  openRuntimeStore,
+  PersistedStateError,
+  type RuntimeStore,
+} from './runtime-store.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 3100;
@@ -123,27 +127,46 @@ function createRuntimeServer(
     {
       title: 'Begin or resume work',
       description:
-        'Create an Open Work Session for an existing Managed Project. The handle associates state and is not an authorization credential.',
+        'Begin or resume an Open Work Session and read its persisted Resume Context. The handle associates state and is not an authorization credential.',
       inputSchema: z.object({ project_id: managedProjectIdSchema }),
-      outputSchema: workSessionSummarySchema,
+      outputSchema: workSessionResumeSchema,
     },
     ({ project_id }) => {
-      const workSession = runtimeStore.beginOrResumeWork(project_id);
-      if (!workSession) {
-        const error = {
-          code: 'PROJECT_NOT_FOUND' as const,
-          message: 'Managed Project not found' as const,
-          project_id,
+      try {
+        const workSession = runtimeStore.beginOrResumeWork(project_id);
+        if (!workSession) {
+          const error = {
+            code: 'PROJECT_NOT_FOUND' as const,
+            message: 'Managed Project not found' as const,
+            project_id,
+          };
+          return {
+            isError: true,
+            content: [{ type: 'text', text: JSON.stringify(error) }],
+          };
+        }
+        return {
+          content: [{ type: 'text', text: JSON.stringify(workSession) }],
+          structuredContent: workSession,
         };
+      } catch (error) {
+        if (!(error instanceof PersistedStateError)) throw error;
         return {
           isError: true,
-          content: [{ type: 'text', text: JSON.stringify(error) }],
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                code: 'PERSISTED_STATE_INVALID',
+                message: error.message,
+                project_id,
+                recovery_action:
+                  'Stop work and inspect or restore the project data from a verified backup before retrying.',
+              }),
+            },
+          ],
         };
       }
-      return {
-        content: [{ type: 'text', text: JSON.stringify(workSession) }],
-        structuredContent: workSession,
-      };
     },
   );
 
@@ -279,10 +302,12 @@ async function callProjectTool<Result>(
     );
     if (result.isError) {
       const content = result.content.find((item) => item.type === 'text');
-      const error = managedProjectNotFoundSchema.parse(
+      const error = projectToolErrorSchema.parse(
         content?.type === 'text' ? JSON.parse(content.text) : undefined,
       );
-      throw new Error(`${error.code}: ${error.message}`);
+      const recovery =
+        'recovery_action' in error ? ` ${error.recovery_action}` : '';
+      throw new Error(`${error.code}: ${error.message}${recovery}`);
     }
     return outputSchema.parse(result.structuredContent);
   } finally {
@@ -314,12 +339,12 @@ export function getManagedProject(
 export function beginOrResumeWork(
   url: URL,
   projectId: ManagedProjectId,
-): Promise<WorkSessionSummary> {
+): Promise<WorkSessionResume> {
   return callProjectTool(
     url,
     'begin_or_resume_work',
     { project_id: projectId },
-    workSessionSummarySchema,
+    workSessionResumeSchema,
   );
 }
 

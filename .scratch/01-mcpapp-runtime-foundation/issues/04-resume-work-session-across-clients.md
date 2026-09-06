@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 — 為受管專案建立 Open Work Session
 
-**Status:** claimed
+**Status:** resolved
 
 **Review fixed point:** `8d6d7bfa7da9c937b371af04773b68115eb5bbed`
 
@@ -57,6 +57,16 @@
 
 ## Delivery status
 
-- 已完成變更與本機驗證，等待 Commit Approval；尚未執行提交後的 Standards／Spec
-  雙軸 code-review，也尚未建立 PR 或取得新分支的 GitHub Actions 結果。
-- Ticket 維持 `claimed`，由專案擁有者 Merge PR 並記錄 Merge Commit 後才標記完成。
+- 專案擁有者核准 Commit `13e122767919a0f15c67a80cfc820c19fcf8f524` 後，已完成
+  Standards 與 Spec 雙軸獨立 code-review，兩軸均為 0 Findings。
+- [GitHub Actions CI #34039989742](https://github.com/krok1029/mcpapp/actions/runs/34039989742)
+  與 GitGuardian Security Checks 均通過。
+
+## Answer
+
+- 已由專案擁有者 `krok1029` 於 2026-09-06 合併
+  [PR #5](https://github.com/krok1029/mcpapp/pull/5)。
+- Merge Commit：`d84294cd126514740874412cdf68204228347bfd`。
+- 已驗證同一受管專案的 Open Work Session 可跨 HTTP 重連、本機 Client 切換與
+  Client 關閉後重建而延續，legacy transport session ID 不會替換 Work Session handle。
+- Ticket 05 的 blocker 已解除，後續實作 Server 重啟後的恢復與 Resume Context。
