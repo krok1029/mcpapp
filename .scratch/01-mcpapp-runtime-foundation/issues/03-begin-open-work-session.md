@@ -29,6 +29,26 @@
   不存在的 `project_id` 回傳 generic SQLite／MCP error，而非 `PROJECT_NOT_FOUND`。
 - Missing-project Green：相同測試內容雜湊下，targeted contract test 通過 1 個 test
   file、2 個 tests；SQLite foreign key 同時防止孤立 Work Session。
-- Final：`yarn test` 全部通過，其中 Server 為 5 個 test files、12 個 tests；
+- Single-open review-fix Red：最終測試檔 SHA-256
+  `9f1ae22376b3361abdbdf21273e2fa41588fb534fff77a32e3aa57e7d91d598c`；
+  對同一受管專案重複呼叫時，第二次產生不同 `work_session_id`。
+- Single-open review-fix Green：相同測試內容雜湊下，targeted contract test 通過 1 個
+  test file、3 個 tests；Store 改為 lookup-or-create，並以 SQLite partial unique index
+  保證每個受管專案最多一個 Open Work Session。
+- Final：`yarn test` 全部通過，其中 Server 為 5 個 test files、13 個 tests；
   `yarn lint`、`yarn typecheck`、`yarn build`、`yarn test:e2e` 與
   `git diff --check` 全部通過。
+
+## Review Findings
+
+- Standards／Spec P1：`begin_or_resume_work` 原本無條件建立新 ID，允許同一受管專案
+  同時存在多個 Open Work Session。已改為回傳既有 Open Work Session，並增加資料庫
+  唯一約束與公開契約測試。
+- Standards P1：review 建議本 Ticket 同時加入安裝 Token 驗證。依 active Spec Further
+  Notes，安全 Token 與 Project Console visibility 明確由後續 Spec 完成；Ticket 03
+  不擴張為 Server-wide 授權實作。此 Diff 沒有把 `work_session_id` 當成 credential 或
+  授權依據。
+- Standards P3：`beginOrResumeWork` 與 Managed Project client helper 重複連線、呼叫、
+  錯誤解析與關閉流程。已抽為具型別的共用 `callProjectTool`。
+- Standards P3：`ManagedProjectStore` 已同時管理 Work Session，名稱過窄。已改名為
+  `RuntimeStore`，檔案同步改為 `runtime-store.ts`。

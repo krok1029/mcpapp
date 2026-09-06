@@ -53,4 +53,18 @@ describe('Work Session Streamable HTTP contract', () => {
       beginOrResumeWork(server.url, missingProjectId),
     ).rejects.toThrow('PROJECT_NOT_FOUND: Managed Project not found');
   });
+
+  it('does not create a second Open Work Session for the same Managed Project', async () => {
+    dataDirectory = await mkdtemp(join(tmpdir(), 'mcpapp-work-session-'));
+    server = await startMcpAppServer({
+      port: 0,
+      databasePath: join(dataDirectory, 'mcpapp.sqlite'),
+    });
+    const project = await createManagedProject(server.url);
+    const first = await beginOrResumeWork(server.url, project.project_id);
+
+    const resumed = await beginOrResumeWork(server.url, project.project_id);
+
+    expect(resumed).toEqual(first);
+  });
 });

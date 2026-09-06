@@ -10,7 +10,7 @@ import {
   type ManagedProjectSummary,
   type WorkSessionSummary,
 } from '@mcpapp/contracts';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-sqlite';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
@@ -27,18 +27,18 @@ const workSessions = sqliteTable('work_sessions', {
   status: text('status').notNull(),
 });
 
-export interface ManagedProjectStore {
+export interface RuntimeStore {
   create(): ManagedProjectSummary;
   get(projectId: ManagedProjectId): ManagedProjectSummary | undefined;
-  createWorkSession(
+  beginOrResumeWork(
     projectId: ManagedProjectId,
   ): WorkSessionSummary | undefined;
   close(): void;
 }
 
-export async function openManagedProjectStore(
+export async function openRuntimeStore(
   databasePath: string,
-): Promise<ManagedProjectStore> {
+): Promise<RuntimeStore> {
   await mkdir(dirname(databasePath), { recursive: true });
   const sqlite = new DatabaseSync(databasePath);
   sqlite.exec(`
@@ -54,6 +54,10 @@ export async function openManagedProjectStore(
       project_id TEXT NOT NULL REFERENCES managed_projects(project_id),
       status TEXT NOT NULL
     );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS work_sessions_one_open_per_project
+      ON work_sessions(project_id)
+      WHERE status = 'open';
   `);
   const database = drizzle({ client: sqlite });
 
@@ -81,13 +85,31 @@ export async function openManagedProjectStore(
         status: row.status,
       });
     },
-    createWorkSession(projectId) {
+    beginOrResumeWork(projectId) {
       const project = database
         .select({ projectId: managedProjects.projectId })
         .from(managedProjects)
         .where(eq(managedProjects.projectId, projectId))
         .get();
       if (!project) return undefined;
+
+      const openWorkSession = database
+        .select()
+        .from(workSessions)
+        .where(
+          and(
+            eq(workSessions.projectId, projectId),
+            eq(workSessions.status, 'open'),
+          ),
+        )
+        .get();
+      if (openWorkSession) {
+        return workSessionSummarySchema.parse({
+          work_session_id: openWorkSession.workSessionId,
+          project_id: openWorkSession.projectId,
+          status: openWorkSession.status,
+        });
+      }
 
       const workSession = workSessionSummarySchema.parse({
         work_session_id: randomUUID(),

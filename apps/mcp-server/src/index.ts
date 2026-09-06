@@ -26,10 +26,7 @@ import {
 import { createMcpHandler, McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
 
-import {
-  openManagedProjectStore,
-  type ManagedProjectStore,
-} from './managed-project-store.js';
+import { openRuntimeStore, type RuntimeStore } from './runtime-store.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 3100;
@@ -57,7 +54,7 @@ export type RuntimeStatusQuery =
 
 function createRuntimeServer(
   version: string,
-  projects: ManagedProjectStore,
+  projects: RuntimeStore,
 ): McpServer {
   const server = new McpServer({ name: 'mcpapp', version });
   const status: RuntimeStatus = { readiness: 'ready', version };
@@ -131,7 +128,7 @@ function createRuntimeServer(
       outputSchema: workSessionSummarySchema,
     },
     ({ project_id }) => {
-      const workSession = projects.createWorkSession(project_id);
+      const workSession = projects.beginOrResumeWork(project_id);
       if (!workSession) {
         const error = {
           code: 'PROJECT_NOT_FOUND' as const,
@@ -208,7 +205,7 @@ export async function startMcpAppServer(
   }
 
   const version = await packageVersion();
-  const projects = await openManagedProjectStore(databasePath);
+  const projects = await openRuntimeStore(databasePath);
   const handler = createMcpHandler(() =>
     createRuntimeServer(version, projects),
   );
@@ -259,11 +256,15 @@ export async function startMcpAppServer(
   };
 }
 
-async function callManagedProjectTool(
+async function callProjectTool<Result>(
   url: URL,
-  name: 'create_managed_project' | 'get_managed_project',
+  name:
+    | 'create_managed_project'
+    | 'get_managed_project'
+    | 'begin_or_resume_work',
   arguments_: Record<string, unknown>,
-): Promise<ManagedProjectSummary> {
+  outputSchema: z.ZodType<Result>,
+): Promise<Result> {
   const client = new Client({
     name: 'mcpapp-managed-project-client',
     version: '0.0.0',
@@ -283,55 +284,43 @@ async function callManagedProjectTool(
       );
       throw new Error(`${error.code}: ${error.message}`);
     }
-    return managedProjectSummarySchema.parse(result.structuredContent);
+    return outputSchema.parse(result.structuredContent);
   } finally {
     await client.close();
   }
 }
 
 export function createManagedProject(url: URL): Promise<ManagedProjectSummary> {
-  return callManagedProjectTool(url, 'create_managed_project', {});
+  return callProjectTool(
+    url,
+    'create_managed_project',
+    {},
+    managedProjectSummarySchema,
+  );
 }
 
 export function getManagedProject(
   url: URL,
   projectId: ManagedProjectId,
 ): Promise<ManagedProjectSummary> {
-  return callManagedProjectTool(url, 'get_managed_project', {
-    project_id: projectId,
-  });
+  return callProjectTool(
+    url,
+    'get_managed_project',
+    { project_id: projectId },
+    managedProjectSummarySchema,
+  );
 }
 
-export async function beginOrResumeWork(
+export function beginOrResumeWork(
   url: URL,
   projectId: ManagedProjectId,
 ): Promise<WorkSessionSummary> {
-  const client = new Client({
-    name: 'mcpapp-work-session-client',
-    version: '0.0.0',
-  });
-  const transport = new StreamableHTTPClientTransport(url);
-
-  try {
-    await client.connect(transport, { timeout: CLIENT_TIMEOUT_MS });
-    const result = await client.callTool(
-      {
-        name: 'begin_or_resume_work',
-        arguments: { project_id: projectId },
-      },
-      { timeout: CLIENT_TIMEOUT_MS },
-    );
-    if (result.isError) {
-      const content = result.content.find((item) => item.type === 'text');
-      const error = managedProjectNotFoundSchema.parse(
-        content?.type === 'text' ? JSON.parse(content.text) : undefined,
-      );
-      throw new Error(`${error.code}: ${error.message}`);
-    }
-    return workSessionSummarySchema.parse(result.structuredContent);
-  } finally {
-    await client.close();
-  }
+  return callProjectTool(
+    url,
+    'begin_or_resume_work',
+    { project_id: projectId },
+    workSessionSummarySchema,
+  );
 }
 
 export async function queryRuntimeStatus(
