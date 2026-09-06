@@ -4,7 +4,7 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** claimed
+**Status:** resolved
 
 - [x] 單一開發指令會以前景程序啟動 McpApp Server，啟動失敗時回傳非零狀態與可理解原因。
 - [x] MCP Client 可透過 Streamable HTTP 完成初始化並呼叫唯讀 runtime status 工具。
@@ -56,3 +56,9 @@ apps/mcp-server run test/runtime.contract.test.ts` 通過 1 個 test file、3 �
 - 第二輪 Spec P2：Server 接受 request guards 不支援的 `127/8` 位址。已將允許範圍
   收斂為 `127.0.0.1` 與 `::1`，並加入 contract test；專案擁有者已核准追加
   Commit。
+
+## Answer
+
+已完成並透過 [PR #1](https://github.com/krok1029/mcpapp/pull/1) 合併至
+`main`。Merge commit 為 `01ce44b7e599fff0c695b22bf0a486cf7f17b484`，合併前
+GitHub Actions `quality` 與 GitGuardian Security Checks 均通過。

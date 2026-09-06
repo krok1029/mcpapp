@@ -4,11 +4,62 @@
 
 **Blocked by:** 01 — 啟動並查詢 McpApp Server
 
-**Status:** ready-for-agent
+**Status:** claimed
 
-- [ ] Host 可透過 MCP Tool 建立具有穩定、不重用身分的受管專案草稿。
-- [ ] 建立結果包含後續 `begin_or_resume_work` 可使用的 `project_id`，但不會順便建立 Work Session。
-- [ ] 純讀取工具可依 `project_id` 取得已保存的受管專案摘要。
-- [ ] 找不到專案時回傳明確 domain error，不洩漏 Storage 細節。
-- [ ] 關閉並以相同資料位置重啟 Server 後，仍可讀取相同專案與身分。
-- [ ] 整合測試透過 Streamable HTTP 使用真實暫存 SQLite，不把 Drizzle 或資料表結構當作 public seam。
+**Review fixed point:** `c5a46c7`
+
+- [x] Host 可透過 MCP Tool 建立具有穩定、不重用身分的受管專案草稿。
+- [x] 建立結果包含後續 `begin_or_resume_work` 可使用的 `project_id`，但不會順便建立 Work Session。
+- [x] 純讀取工具可依 `project_id` 取得已保存的受管專案摘要。
+- [x] 找不到專案時回傳明確 domain error，不洩漏 Storage 細節。
+- [x] 關閉並以相同資料位置重啟 Server 後，仍可讀取相同專案與身分。
+- [x] 整合測試透過 Streamable HTTP 使用真實暫存 SQLite，不把 Drizzle 或資料表結構當作 public seam。
+
+## Verification Evidence
+
+- Dependency approval：專案擁有者核准新增 `drizzle-orm@1.0.0-rc.4`；Server
+  使用其 `node:sqlite` adapter，不另增 SQLite native driver。
+- Create/read Red：`apps/mcp-server/test/managed-project.contract.test.ts`
+  SHA-256 `98261a32fbb9dea8595b166dc885faa87169ceaa374f3354079141d52b20e67a`；
+  contract test 因 `createManagedProject is not a function` 失敗。
+- Create/read Green：同一測試內容雜湊下，targeted contract test 通過 1 個 test
+  file、1 個 test。
+- Not-found Red：同一測試檔 SHA-256
+  `8f1ca8a1369f39bcb767e6021a4cccb36c27f81e94026470c4dee3fb6be1eca9`；
+  不存在的 `project_id` 未回傳 `PROJECT_NOT_FOUND`，而是 schema parse error。
+- Not-found Green：同一測試內容雜湊下，targeted contract test 通過 1 個 test
+  file、2 個 tests。
+- Persistence／identity：最終測試檔 SHA-256
+  `f1da1ae67c0e3fd34875be06a06ffb30f390978684e99aa5d4c4f2ecb36b40aa`；
+  targeted contract test 通過 1 個 test file、4 個 tests，涵蓋建立後讀取、明確
+  not-found、相同 SQLite 路徑重啟後讀取，以及不重用 `project_id`。
+- Evidence gap：重啟持久化與不重用 ID 的個別 tests 是在第一個 Green 所加入的
+  SQLite／UUID 實作後補上，沒有同內容的 Red Evidence；不補造歷史。
+- Final：`yarn test` 全部通過，其中 Server 為 4 個 test files、10 個 tests；
+  `yarn lint`、`yarn typecheck`、`yarn format:check`、`yarn build` 與
+  `git diff --check` 全部通過。
+
+## Review Findings
+
+- Spec P1：`create_managed_project` 無 handle，與原 AC-004 的「所有變更型工具」
+  文字衝突。專案擁有者已核准由 v003 以 AC-093 supersede AC-004：建立受管專案草稿是尚無
+  `project_id` 可綁定 Work Session 的 bootstrap 操作；其餘作用於既有受管專案的
+  變更型工具仍要求有效 handle。
+- Standards P2：重啟持久化與不重用 ID tests 缺少同內容 Red Evidence。無法事後
+  補造；專案擁有者已明確接受此 evidence risk。
+- Standards P3：contract tests 重複建立暫存 SQLite／Server fixture。已抽出共用
+  fixture helper。
+- Standards P3：`project_id` 在內部 Storage 與 Client 邊界使用一般 `string`。
+  已改用由 Zod schema 推導的 branded `ManagedProjectId`。
+- Review fix verification：重構後 contract test SHA-256
+  `945c403ecaede480a210ba40fe7db97c9cb60cdd5b3cc58299b6f9e9da8d02cd`；
+  `yarn test` 全部通過，其中 Server 為 4 個 test files、10 個 tests；
+  `yarn lint`、`yarn typecheck`、`yarn format:check`、`yarn build` 與
+  `git diff --check` 全部通過。
+- Standards re-review P2：直接修改既有 Spec 未建立 successor Spec Version 與
+  Impact Analysis。已保存不可變 v001／v002 snapshots、將 `spec.md` 改為穩定入口，
+  並記錄 Ticket 02、03、06 與相關 tests 的影響及處置。
+- Standards third review P2：v002 的 bootstrap 例外實質改變驗收語意，不應保留
+  `AC-004`。已依專案擁有者核准建立 Spec Version v003 與 `AC-093`，以
+  `supersedes` 關聯 v001／v002 與 `AC-004`，並同步更新 Impact Analysis、Ticket 06
+  與 Map。

@@ -1,8 +1,17 @@
 import { readFile } from 'node:fs/promises';
 import { createServer, type Server as HttpServer } from 'node:http';
 import { isIPv4 } from 'node:net';
+import { join } from 'node:path';
 
-import { runtimeStatusSchema, type RuntimeStatus } from '@mcpapp/contracts';
+import {
+  managedProjectIdSchema,
+  managedProjectNotFoundSchema,
+  managedProjectSummarySchema,
+  runtimeStatusSchema,
+  type ManagedProjectId,
+  type ManagedProjectSummary,
+  type RuntimeStatus,
+} from '@mcpapp/contracts';
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -13,6 +22,12 @@ import {
   toNodeHandler,
 } from '@modelcontextprotocol/node';
 import { createMcpHandler, McpServer } from '@modelcontextprotocol/server';
+import { z } from 'zod';
+
+import {
+  openManagedProjectStore,
+  type ManagedProjectStore,
+} from './managed-project-store.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 3100;
@@ -26,6 +41,7 @@ function isLoopbackAddress(host: string): boolean {
 export interface McpAppServerOptions {
   host?: string;
   port?: number;
+  databasePath?: string;
 }
 
 export interface McpAppServer {
@@ -37,7 +53,10 @@ export type RuntimeStatusQuery =
   | { availability: 'available'; status: RuntimeStatus }
   | { availability: 'unavailable'; reason: string };
 
-function createRuntimeServer(version: string): McpServer {
+function createRuntimeServer(
+  version: string,
+  projects: ManagedProjectStore,
+): McpServer {
   const server = new McpServer({ name: 'mcpapp', version });
   const status: RuntimeStatus = { readiness: 'ready', version };
 
@@ -53,6 +72,51 @@ function createRuntimeServer(version: string): McpServer {
       content: [{ type: 'text', text: JSON.stringify(status) }],
       structuredContent: status,
     }),
+  );
+
+  server.registerTool(
+    'create_managed_project',
+    {
+      title: 'Create Managed Project draft',
+      description: 'Create and persist a minimal Managed Project draft.',
+      outputSchema: managedProjectSummarySchema,
+    },
+    () => {
+      const project = projects.create();
+      return {
+        content: [{ type: 'text', text: JSON.stringify(project) }],
+        structuredContent: project,
+      };
+    },
+  );
+
+  server.registerTool(
+    'get_managed_project',
+    {
+      title: 'Get Managed Project',
+      description: 'Read a persisted Managed Project summary.',
+      inputSchema: z.object({ project_id: managedProjectIdSchema }),
+      outputSchema: managedProjectSummarySchema,
+      annotations: { readOnlyHint: true },
+    },
+    ({ project_id }) => {
+      const project = projects.get(project_id);
+      if (!project) {
+        const error = {
+          code: 'PROJECT_NOT_FOUND' as const,
+          message: 'Managed Project not found' as const,
+          project_id,
+        };
+        return {
+          isError: true,
+          content: [{ type: 'text', text: JSON.stringify(error) }],
+        };
+      }
+      return {
+        content: [{ type: 'text', text: JSON.stringify(project) }],
+        structuredContent: project,
+      };
+    },
   );
 
   return server;
@@ -103,6 +167,8 @@ export async function startMcpAppServer(
 ): Promise<McpAppServer> {
   const host = options.host ?? DEFAULT_HOST;
   const port = options.port ?? DEFAULT_PORT;
+  const databasePath =
+    options.databasePath ?? join(process.cwd(), '.data', 'mcpapp.sqlite');
   if (!isLoopbackAddress(host)) {
     if (isIPv4(host) && host.startsWith('127.')) {
       throw new Error('McpApp Server must bind to 127.0.0.1 or ::1');
@@ -111,7 +177,10 @@ export async function startMcpAppServer(
   }
 
   const version = await packageVersion();
-  const handler = createMcpHandler(() => createRuntimeServer(version));
+  const projects = await openManagedProjectStore(databasePath);
+  const handler = createMcpHandler(() =>
+    createRuntimeServer(version, projects),
+  );
   const handleMcpRequest = toNodeHandler(handler);
   const validateHost = localhostHostValidation();
   const validateOrigin = localhostOriginValidation();
@@ -154,8 +223,52 @@ export async function startMcpAppServer(
       closed = true;
       await handler.close();
       await closeHttpServer(httpServer);
+      projects.close();
     },
   };
+}
+
+async function callManagedProjectTool(
+  url: URL,
+  name: 'create_managed_project' | 'get_managed_project',
+  arguments_: Record<string, unknown>,
+): Promise<ManagedProjectSummary> {
+  const client = new Client({
+    name: 'mcpapp-managed-project-client',
+    version: '0.0.0',
+  });
+  const transport = new StreamableHTTPClientTransport(url);
+
+  try {
+    await client.connect(transport, { timeout: CLIENT_TIMEOUT_MS });
+    const result = await client.callTool(
+      { name, arguments: arguments_ },
+      { timeout: CLIENT_TIMEOUT_MS },
+    );
+    if (result.isError) {
+      const content = result.content.find((item) => item.type === 'text');
+      const error = managedProjectNotFoundSchema.parse(
+        content?.type === 'text' ? JSON.parse(content.text) : undefined,
+      );
+      throw new Error(`${error.code}: ${error.message}`);
+    }
+    return managedProjectSummarySchema.parse(result.structuredContent);
+  } finally {
+    await client.close();
+  }
+}
+
+export function createManagedProject(url: URL): Promise<ManagedProjectSummary> {
+  return callManagedProjectTool(url, 'create_managed_project', {});
+}
+
+export function getManagedProject(
+  url: URL,
+  projectId: ManagedProjectId,
+): Promise<ManagedProjectSummary> {
+  return callManagedProjectTool(url, 'get_managed_project', {
+    project_id: projectId,
+  });
 }
 
 export async function queryRuntimeStatus(
