@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 — 建立並持久保存受管專案草稿
 
-**Status:** claimed
+**Status:** resolved
 
 **Review fixed point:** `788fed5`
 
@@ -59,3 +59,11 @@
   `b9e101276433c19d6e77b9f8baf996f10f93c58f0f4996d89d95fd9a19aa8d7a`。
 - Standards final-review P3：擴充後的 `RuntimeStore.create()`／`get()` 未指出操作的
   領域物件。已改名為 `createManagedProject()`／`getManagedProject()`。
+
+## Answer
+
+- 已由 [PR #4](https://github.com/krok1029/mcpapp/pull/4) 於 2026-09-06 合併。
+- Merge Commit：`8d6d7bfa7da9c937b371af04773b68115eb5bbed`。
+- PR 記錄最終 Standards 與 Spec review 均為 0 個 Findings，GitHub Actions quality
+  與 GitGuardian Security Checks 均通過。
+- Ticket 04 的 blocker 已解除，後續驗證跨 HTTP 重連與本機 Client 恢復同一 Work Session。
