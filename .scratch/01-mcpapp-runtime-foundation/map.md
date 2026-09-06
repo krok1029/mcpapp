@@ -9,7 +9,7 @@ Parent Spec: [01 — Runtime Foundation Spec](spec.md)
 | [03 — 為受管專案建立 Open Work Session](issues/03-begin-open-work-session.md)                       | ready-for-agent | 02         | AC-001 create              |
 | [04 — 跨 HTTP 重連與本機 Host 恢復 Work Session](issues/04-resume-work-session-across-clients.md)   | ready-for-agent | 03         | AC-001 resume、AC-002      |
 | [05 — Server 重啟後提供 Resume Context](issues/05-resume-context-after-server-restart.md)           | ready-for-agent | 04         | AC-003 normal restart      |
-| [06 — 關閉 Work Session 並驗證變更 handle](issues/06-close-work-session-and-validate-handle.md)     | needs-triage    | 03         | AC-004                     |
+| [06 — 關閉 Work Session 並驗證變更 handle](issues/06-close-work-session-and-validate-handle.md)     | needs-triage    | 03         | AC-093                     |
 | [07 — 阻止第二個 McpApp Server 實例](issues/07-prevent-second-server-instance.md)                   | ready-for-agent | 01         | AC-027 live owner          |
 | [08 — 辨識並恢復 stale Server instance lock](issues/08-recover-stale-server-lock.md)                | ready-for-agent | 07         | AC-027 stale lock          |
 | [09 — 競爭變更立即回傳 PROJECT_BUSY](issues/09-return-project-busy-for-competing-mutations.md)      | ready-for-agent | 06         | AC-028                     |
@@ -33,6 +33,8 @@ Ticket 02，因此尚未被認領的 frontier 是 Ticket 07。McpApp Repository 
   bootstrap 操作；此澄清保存為 Spec Version v002，並完成 Impact Analysis。
 - Impact Analysis 判定 Ticket 03 不受影響；Ticket 06 直接受影響，已回到
   `needs-triage` 等待重新確認。
+- Spec Version v003 使用 `AC-093` supersede `AC-004`，避免以相同 ID 表示實質不同的
+  驗收語意；v001 與 v002 保持不可變。
 
 ## Dependency graph
 

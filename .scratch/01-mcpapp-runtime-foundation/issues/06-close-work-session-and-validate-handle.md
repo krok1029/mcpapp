@@ -12,4 +12,4 @@
 - [ ] 只有明確的結束或放棄操作能把 Open Work Session 關閉，HTTP 中斷不會造成關閉。
 - [ ] 已關閉 Work Session 的 handle 不能再次執行變更，但其歷史與 Evidence 保留可讀。
 - [ ] 關閉後再次呼叫 `begin_or_resume_work` 會建立新的、不重用的 `work_session_id`。
-- [ ] 公開 MCP Tool contract tests 覆蓋成功與拒絕路徑，完成 AC-004。
+- [ ] 公開 MCP Tool contract tests 覆蓋成功與拒絕路徑，完成 AC-093。

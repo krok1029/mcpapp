@@ -42,7 +42,7 @@
 ## Review Findings
 
 - Spec P1：`create_managed_project` 無 handle，與原 AC-004 的「所有變更型工具」
-  文字衝突。專案擁有者已核准將 AC-004 澄清為：建立受管專案草稿是尚無
+  文字衝突。專案擁有者已核准由 v003 以 AC-093 supersede AC-004：建立受管專案草稿是尚無
   `project_id` 可綁定 Work Session 的 bootstrap 操作；其餘作用於既有受管專案的
   變更型工具仍要求有效 handle。
 - Standards P2：重啟持久化與不重用 ID tests 缺少同內容 Red Evidence。無法事後
@@ -59,3 +59,7 @@
 - Standards re-review P2：直接修改既有 Spec 未建立 successor Spec Version 與
   Impact Analysis。已保存不可變 v001／v002 snapshots、將 `spec.md` 改為穩定入口，
   並記錄 Ticket 02、03、06 與相關 tests 的影響及處置。
+- Standards third review P2：v002 的 bootstrap 例外實質改變驗收語意，不應保留
+  `AC-004`。已依專案擁有者核准建立 Spec Version v003 與 `AC-093`，以
+  `supersedes` 關聯 v001／v002 與 `AC-004`，並同步更新 Impact Analysis、Ticket 06
+  與 Map。
