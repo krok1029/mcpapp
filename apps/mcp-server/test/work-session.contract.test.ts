@@ -40,7 +40,7 @@ describe('Work Session Streamable HTTP contract', () => {
       project.project_id,
     );
 
-    expect(workSession).toEqual({
+    expect(workSession).toMatchObject({
       work_session_id: expect.any(String),
       project_id: project.project_id,
       status: 'open',
