@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 — 啟動並查詢 McpApp Server
 
-**Status:** claimed
+**Status:** resolved
 
 **Review fixed point:** `c5a46c7`
 
@@ -63,3 +63,10 @@
   `AC-004`。已依專案擁有者核准建立 Spec Version v003 與 `AC-093`，以
   `supersedes` 關聯 v001／v002 與 `AC-004`，並同步更新 Impact Analysis、Ticket 06
   與 Map。
+
+## Answer
+
+已完成並透過 [PR #3](https://github.com/krok1029/mcpapp/pull/3) 合併至
+`main`。Merge commit 為 `4e1d7bce06eb70b5922253321fa8e6cbe7f61475`；合併前
+GitHub Actions `quality` 與 GitGuardian Security Checks 均通過，最終 Standards
+與 Spec review 都沒有未處置 Finding。
