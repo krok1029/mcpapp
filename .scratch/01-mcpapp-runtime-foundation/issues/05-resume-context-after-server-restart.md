@@ -142,11 +142,59 @@
 Server tests／typecheck／build 與 Chromium test 均重新執行；未變更的 Contracts／UI
 jobs 使用既有成功的 Turbo cache。以上 log 均位於 `/tmp/mcpapp-ticket05-4FlcNB/`。
 
+## 最終複審與 PR 發布 — 2026-09-06
+
+- 專案擁有者核准追加 Commit `dc1a855d8246cbdcfd488c4f210a355d88c29fb8`：
+  `fix: validate saved progress before beginning work`。
+- 兩個新的獨立 sub-agents 針對 fixed point 至 `dc1a855` 的完整累積 Diff 重新審查：
+  Standards 為 0 Findings，Spec 為 0 未結案 Findings，原 P2 明確結案。
+  完整報告為 `/tmp/mcpapp-ticket05-4FlcNB/review-final.md`。
+- 專案擁有者核准發布方案後，已推送分支並建立
+  [Draft PR #6](https://github.com/krok1029/mcpapp/pull/6)。Remote 為
+  `origin`／`krok1029/mcpapp`，base 為 `main`，head 為
+  `codex/ticket-05-resume-context`，Labels 為 `enhancement`、`risk:medium`。
+- 遠端 PR 的 Diff 與核准 Diff 逐 byte 相同，HEAD 保持 `dc1a855`。GitGuardian
+  Security Checks 通過。
+
+## CI 逾時修正 — 2026-09-07
+
+- [CI #34043890202](https://github.com/krok1029/mcpapp/actions/runs/34043890202)
+  的 Typecheck、Lint、Format 通過；Test 階段的第 9 個 Resume Context case 在
+  5,033 ms 達到 Vitest 預設 5,000 ms 測試時限，其餘 27 個 Server tests 通過。
+  Build／Browser test 因前一步失敗而略過。原始輸出為 `ci-failed.log`。
+- 該 case 依序啟動四個真實 Server 程序，以驗證草稿、損壞狀態、重試與修復。
+  在本機暫存 preloader 對每次啟動加入 1 秒延遲後，單獨執行同一 case 可重現
+  相同的 5 秒整體逾時；只透過 CLI 放寬整體時限便通過。這是啟動成本的控制實驗，
+  不宣稱完全重現 Linux runner 的硬體或排程。
+- 修正僅為這個 case 設定 `15_000` ms 時限，並增加一行原因註解。所有行為斷言、
+  每次程序啟停的 5 秒限制及每次 MCP 操作的 1 秒限制維持原樣，產品程式碼未變更。
+- 修正後在相同較慢啟動條件下，連續 5 次全部通過，各次約 6.6 秒；完整輸出為
+  `ci-timeout-green-1.log` 至 `ci-timeout-green-5.log`。診斷紀錄為
+  `ci-timeout-diagnosis.md`，暫存延遲程式保存在 `debug/`，不納入 Repository。
+- 為確認放寬時限不會掩蓋原 P2，將最終測試原樣放入 `1c3b73e` 的暫存展開目錄。
+  `ci-timeout-guard-red.log` 仍因預期錯誤卻收到成功結果而失敗；目前實作的相同
+  測試則全部通過。最終測試 SHA-256：
+  `2d3d6118837008fd09be64f5eea2af1898d73b53494203c68de1624a63261db2`。
+
+### CI 修正後本機驗證
+
+| 指令                         | 結果／本機 log                                                           |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `corepack yarn test`         | Node runner 6、Server 28、Contracts 1、UI 2 通過；`ci-fix-full-test.log` |
+| `corepack yarn typecheck`    | 通過；`ci-fix-typecheck.log`                                             |
+| `corepack yarn lint`         | 通過；`ci-fix-lint.log`                                                  |
+| `corepack yarn build`        | 通過；`ci-fix-build.log`                                                 |
+| `corepack yarn test:e2e`     | 1 個 Chromium case 通過；`ci-fix-e2e.log`                                |
+| `corepack yarn format:check` | 通過；`ci-fix-format.log`                                                |
+| `git diff --check`           | 通過                                                                     |
+
+以上 log 位於 `/tmp/mcpapp-ticket05-4FlcNB/`。Server tests／typecheck／build 及
+Chromium case 重新執行；未變更的 Contracts／UI jobs 使用先前成功的 Turbo cache。
+
 ## Delivery status
 
 - 分支：`codex/ticket-05-resume-context`。
-- 首輪 Commit 與雙軸 review 已完成。P2 修正及本機驗證完成，專案擁有者已於
-  2026-09-06 核准追加 Commit 與重新執行雙軸 review；不 amend 已審查 Commit。
-- 追加 Commit 後，須以相同 fixed point 對新的 HEAD 重跑 Standards／Spec 獨立
-  審查。現有 P2 尚未經新一輪 review 結案，PR 尚未發布。
+- `dc1a855` 的雙軸 review 已通過，PR #6 已發布並維持 Draft。
+- CI 的測試時限修正已完成本機驗證；專案擁有者已於 2026-09-07 核准追加 Commit、
+  以相同 fixed point 重跑雙軸 review，並於通過後推送到既有 PR、重跑 CI。
 - Ticket 保持 `claimed`，待專案擁有者 Merge 並記錄 Merge Commit 後才可 resolved。

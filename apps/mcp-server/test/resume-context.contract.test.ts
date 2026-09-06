@@ -381,6 +381,7 @@ describe('Resume Context across Server process restarts', () => {
     ]);
   });
 
+  // Four real process starts need CI headroom beyond a single operation's deadline.
   it('preserves invalid saved progress until repaired before beginning the first Work Session', async () => {
     // GIVEN: A persisted draft has invalid progress and has never begun a Work Session.
     const first = await startServer();
@@ -431,5 +432,5 @@ describe('Resume Context across Server process restarts', () => {
         last_successful_step: 'begin_or_resume_work',
       },
     });
-  });
+  }, 15_000);
 });
