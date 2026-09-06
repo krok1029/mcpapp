@@ -29,7 +29,7 @@
   不存在的 `project_id` 回傳 generic SQLite／MCP error，而非 `PROJECT_NOT_FOUND`。
 - Missing-project Green：相同測試內容雜湊下，targeted contract test 通過 1 個 test
   file、2 個 tests；SQLite foreign key 同時防止孤立 Work Session。
-- Single-open review-fix Red：最終測試檔 SHA-256
+- Single-open review-fix Red：當時測試檔 SHA-256
   `9f1ae22376b3361abdbdf21273e2fa41588fb534fff77a32e3aa57e7d91d598c`；
   對同一受管專案重複呼叫時，第二次產生不同 `work_session_id`。
 - Single-open review-fix Green：相同測試內容雜湊下，targeted contract test 通過 1 個
@@ -52,3 +52,8 @@
   錯誤解析與關閉流程。已抽為具型別的共用 `callProjectTool`。
 - Standards P3：`ManagedProjectStore` 已同時管理 Work Session，名稱過窄。已改名為
   `RuntimeStore`，檔案同步改為 `runtime-store.ts`。
+- Standards re-review P3：`RuntimeStore` instance 仍命名為 `projects`、共用 client
+  metadata 仍命名為 managed-project client，且 Work Session contract tests 重複建立
+  fixture。已分別改為 `runtimeStore`、`mcpapp-client`，並抽出共用 `startServer()`；
+  重構後測試檔 SHA-256 為
+  `b9e101276433c19d6e77b9f8baf996f10f93c58f0f4996d89d95fd9a19aa8d7a`。

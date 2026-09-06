@@ -54,7 +54,7 @@ export type RuntimeStatusQuery =
 
 function createRuntimeServer(
   version: string,
-  projects: RuntimeStore,
+  runtimeStore: RuntimeStore,
 ): McpServer {
   const server = new McpServer({ name: 'mcpapp', version });
   const status: RuntimeStatus = { readiness: 'ready', version };
@@ -81,7 +81,7 @@ function createRuntimeServer(
       outputSchema: managedProjectSummarySchema,
     },
     () => {
-      const project = projects.create();
+      const project = runtimeStore.create();
       return {
         content: [{ type: 'text', text: JSON.stringify(project) }],
         structuredContent: project,
@@ -99,7 +99,7 @@ function createRuntimeServer(
       annotations: { readOnlyHint: true },
     },
     ({ project_id }) => {
-      const project = projects.get(project_id);
+      const project = runtimeStore.get(project_id);
       if (!project) {
         const error = {
           code: 'PROJECT_NOT_FOUND' as const,
@@ -128,7 +128,7 @@ function createRuntimeServer(
       outputSchema: workSessionSummarySchema,
     },
     ({ project_id }) => {
-      const workSession = projects.beginOrResumeWork(project_id);
+      const workSession = runtimeStore.beginOrResumeWork(project_id);
       if (!workSession) {
         const error = {
           code: 'PROJECT_NOT_FOUND' as const,
@@ -205,9 +205,9 @@ export async function startMcpAppServer(
   }
 
   const version = await packageVersion();
-  const projects = await openRuntimeStore(databasePath);
+  const runtimeStore = await openRuntimeStore(databasePath);
   const handler = createMcpHandler(() =>
-    createRuntimeServer(version, projects),
+    createRuntimeServer(version, runtimeStore),
   );
   const handleMcpRequest = toNodeHandler(handler);
   const validateHost = localhostHostValidation();
@@ -251,7 +251,7 @@ export async function startMcpAppServer(
       closed = true;
       await handler.close();
       await closeHttpServer(httpServer);
-      projects.close();
+      runtimeStore.close();
     },
   };
 }
@@ -266,7 +266,7 @@ async function callProjectTool<Result>(
   outputSchema: z.ZodType<Result>,
 ): Promise<Result> {
   const client = new Client({
-    name: 'mcpapp-managed-project-client',
+    name: 'mcpapp-client',
     version: '0.0.0',
   });
   const transport = new StreamableHTTPClientTransport(url);
