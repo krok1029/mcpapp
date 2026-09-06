@@ -28,8 +28,10 @@ const workSessions = sqliteTable('work_sessions', {
 });
 
 export interface RuntimeStore {
-  create(): ManagedProjectSummary;
-  get(projectId: ManagedProjectId): ManagedProjectSummary | undefined;
+  createManagedProject(): ManagedProjectSummary;
+  getManagedProject(
+    projectId: ManagedProjectId,
+  ): ManagedProjectSummary | undefined;
   beginOrResumeWork(
     projectId: ManagedProjectId,
   ): WorkSessionSummary | undefined;
@@ -62,7 +64,7 @@ export async function openRuntimeStore(
   const database = drizzle({ client: sqlite });
 
   return {
-    create() {
+    createManagedProject() {
       const project = managedProjectSummarySchema.parse({
         project_id: randomUUID(),
         status: 'draft',
@@ -73,7 +75,7 @@ export async function openRuntimeStore(
         .run();
       return project;
     },
-    get(projectId) {
+    getManagedProject(projectId) {
       const row = database
         .select()
         .from(managedProjects)

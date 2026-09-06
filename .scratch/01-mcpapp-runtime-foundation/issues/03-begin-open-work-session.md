@@ -57,3 +57,5 @@
   fixture。已分別改為 `runtimeStore`、`mcpapp-client`，並抽出共用 `startServer()`；
   重構後測試檔 SHA-256 為
   `b9e101276433c19d6e77b9f8baf996f10f93c58f0f4996d89d95fd9a19aa8d7a`。
+- Standards final-review P3：擴充後的 `RuntimeStore.create()`／`get()` 未指出操作的
+  領域物件。已改名為 `createManagedProject()`／`getManagedProject()`。

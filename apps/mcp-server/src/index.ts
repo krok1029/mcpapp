@@ -81,7 +81,7 @@ function createRuntimeServer(
       outputSchema: managedProjectSummarySchema,
     },
     () => {
-      const project = runtimeStore.create();
+      const project = runtimeStore.createManagedProject();
       return {
         content: [{ type: 'text', text: JSON.stringify(project) }],
         structuredContent: project,
@@ -99,7 +99,7 @@ function createRuntimeServer(
       annotations: { readOnlyHint: true },
     },
     ({ project_id }) => {
-      const project = runtimeStore.get(project_id);
+      const project = runtimeStore.getManagedProject(project_id);
       if (!project) {
         const error = {
           code: 'PROJECT_NOT_FOUND' as const,
